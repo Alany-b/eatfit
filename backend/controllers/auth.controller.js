@@ -8,18 +8,16 @@ import { hashPassword, comparePassword } from "../helpers/bcrypt.helper.js";
  */
 export const login = async (req, res) => {
   try {
-    // Accept either username or email as identifier in the request body
-    const { username, email, password } = req.body;
-    const identifier = username || email;
+    const { email, password } = req.body;
 
-    if (!identifier || !password) {
-      return res.status(400).json({ message: "Se requiere identificador y contraseña" });
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email y contraseña son requeridos" });
     }
 
-    // Buscar usuario por username o email
-    const user = await UserModel.findOne({
-      $or: [{ username: identifier }, { email: identifier }],
-    });
+    // Buscar usuario por email
+    const user = await UserModel.findOne({ email: email.toLowerCase() });
 
     // Validar existencia y contraseña (hashed)
     if (!user) {
@@ -34,9 +32,8 @@ export const login = async (req, res) => {
     // Generar token JWT
     const token = generateToken({
       id: user._id,
-      username: user.username,
       name: user.name,
-      lastname: user.lastname,
+      email: user.email,
     });
 
     // Responder al frontend
@@ -46,9 +43,11 @@ export const login = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        // lastname: user.lastname,
-        username: user.username,
         email: user.email,
+        age: user.age,
+        gender: user.gender,
+        condition: user.condition,
+        objective: user.objective,
       },
     });
   } catch (error) {
@@ -63,31 +62,58 @@ export const login = async (req, res) => {
  */
 export const register = async (req, res) => {
   try {
-    const { name, username, email, password } = req.body;
+    const { name, email, password, age, gender, condition, objective } =
+      req.body;
 
     // Validar campos requeridos
-    if (!name  || !username || !email || !password) {
-      return res.status(400).json({ message: "Todos los campos son obligatorios" });
+    if (!name || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Nombre, email y contraseña son obligatorios" });
     }
 
     // Verificar si el usuario ya existe
-    const existingUser = await UserModel.findOne({ username });
+    const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "El usuario ya existe" });
+      return res
+        .status(400)
+        .json({ message: "El usuario ya existe con ese email" });
     }
 
     // Hashear la contraseña y crear nuevo usuario
     const hashed = await hashPassword(password);
     const newUser = new UserModel({
       name,
-      username,
       email,
       password: hashed,
+      age: age ? parseInt(age) : undefined,
+      gender,
+      condition,
+      objective,
     });
 
     await newUser.save();
 
-    return res.status(201).json({ message: "Usuario registrado exitosamente" });
+    // Generar token para login automático
+    const token = generateToken({
+      id: newUser._id,
+      name: newUser.name,
+      email: newUser.email,
+    });
+
+    return res.status(201).json({
+      message: "Usuario registrado exitosamente",
+      token,
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        age: newUser.age,
+        gender: newUser.gender,
+        condition: newUser.condition,
+        objective: newUser.objective,
+      },
+    });
   } catch (error) {
     console.error("Error en register:", error);
     return res.status(500).json({ message: "Error al registrar usuario" });

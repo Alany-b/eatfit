@@ -5,7 +5,7 @@ import {
   updateUserProfile,
 } from "../controllers/ProfileController.js";
 import { validateRequest } from "../middlewares/validationResult.js";
-import { userProfileValidation } from "../validations/userProfileValidation.js";
+import { userProfileValidation } from "../middlewares/validations/userProfileValidation.js";
 
 const userProfileRoutes = Router();
 
